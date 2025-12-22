@@ -10,6 +10,8 @@ public class CheckBoxNode {
 
 / File: DirectoryBrowser.java **/
 
+// File: DirectoryBrowser.java
+
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -18,6 +20,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.List;
 
 /**
@@ -312,7 +315,8 @@ public class DirectoryBrowser {
 
     // Build tree model recursively from selected root directory and set it to tree
     private static void loadDirectoryTree(File rootFile) {
-        DefaultMutableTreeNode rootNode = createFileTreeNode(rootFile);
+        Set<String> processing = new HashSet<>();
+        DefaultMutableTreeNode rootNode = createFileTreeNode(rootFile, processing);
         treeModel = new DefaultTreeModel(rootNode);
         tree.setModel(treeModel);
         tree.expandRow(0);
@@ -320,19 +324,40 @@ public class DirectoryBrowser {
     }
 
     // Recursively create tree nodes; userObject = File for each node
-    private static DefaultMutableTreeNode createFileTreeNode(File file) {
+    private static DefaultMutableTreeNode createFileTreeNode(File file, Set<String> processing) {
         DefaultMutableTreeNode node = new DefaultMutableTreeNode(file);
-        File[] children = file.listFiles();
+        if (!file.isDirectory()) {
+            return node;
+        }
+        String canonical;
+        try {
+            canonical = file.getCanonicalPath();
+        } catch (IOException e) {
+            appendStatus("⚠️ Warning: Could not resolve canonical path for " + file.getAbsolutePath());
+            canonical = file.getAbsolutePath();
+        }
+        if (processing.contains(canonical)) {
+            node.add(new DefaultMutableTreeNode("... (cyclic reference skipped)"));
+            return node;
+        }
+        processing.add(canonical);
+        File[] children = null;
+        try {
+            children = file.listFiles();
+        } catch (SecurityException e) {
+            appendStatus("⚠️ Access denied to directory: " + file.getAbsolutePath());
+        }
         if (children != null) {
-            java.util.Arrays.sort(children, (a, b) -> {
+            Arrays.sort(children, (a, b) -> {
                 if (a.isDirectory() && !b.isDirectory()) return -1;
                 if (!a.isDirectory() && b.isDirectory()) return 1;
                 return a.getName().compareToIgnoreCase(b.getName());
             });
             for (File c : children) {
-                node.add(createFileTreeNode(c));
+                node.add(createFileTreeNode(c, processing));
             }
         }
+        processing.remove(canonical);
         return node;
     }
 
@@ -921,6 +946,8 @@ public class FileNode {
 
 / File: JCheckBoxTree.java **/
 
+// File: JCheckBoxTree.java
+
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -1211,5 +1238,5 @@ public class Main {
 
 - working nicely don't change code structure/architecture/codebase
 - don't change code structure
-- working but sometimes fall in infinity loop when write to file
+- if directory browser text field is not empty, select folder button click "select folder to browse" location is the text field path, else text field is empty default path is desktop location 
 - provide full codebase

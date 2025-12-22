@@ -274,7 +274,13 @@ public class DirectoryBrowser {
     private static void onSelectFolder(ActionEvent e) {
         JFileChooser chooser = createMaterialFileChooser("Select Folder to Browse");
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        chooser.setCurrentDirectory(new File(System.getProperty("user.home"), "Desktop"));
+        File currentDir;
+        if (!pathField.getText().trim().isEmpty()) {
+            currentDir = new File(pathField.getText().trim());
+        } else {
+            currentDir = new File(System.getProperty("user.home"), "Desktop");
+        }
+        chooser.setCurrentDirectory(currentDir);
 
         int res = chooser.showOpenDialog(frame);
         if (res == JFileChooser.APPROVE_OPTION) {
