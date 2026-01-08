@@ -95,11 +95,15 @@ public class JCheckBoxTree extends JTree {
     public void setAllChecked(boolean state) {
         Object rootObj = getModel().getRoot();
         if (rootObj instanceof DefaultMutableTreeNode) {
-            DefaultMutableTreeNode root = (DefaultMutableTreeNode) rootObj;
-            setChecked(root, state);
-            setChildrenChecked(root, state);
+            setCheckedRecursively((DefaultMutableTreeNode) rootObj, state);
         }
         repaint();
+    }
+
+    // Recursively set checked state for a given node and its children
+    public void setCheckedRecursively(DefaultMutableTreeNode node, boolean state) {
+        setChecked(node, state);
+        setChildrenChecked(node, state);
     }
 
     // Collect and return selected files (only regular files)

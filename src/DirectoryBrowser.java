@@ -10,6 +10,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
+import javax.swing.SwingWorker;
 
 /**
  * DirectoryBrowser - main GUI class showing a checkbox tree and handling combine/write operation.
@@ -287,34 +288,65 @@ public class DirectoryBrowser {
             File selected = chooser.getSelectedFile();
             selectedRootDir = selected;               // remember selection for save default
             pathField.setText(selected.getAbsolutePath());
-            loadDirectoryTree(selected);
-            writeButton.setEnabled(true);
-            refreshButton.setEnabled(true);
-            appendStatus("✓ Folder loaded: " + selected.getAbsolutePath());
-            appendStatus("✓ Output format: File name only (default)");
+            loadDirectoryTree(selected, false);
         }
     }
 
     // Handler for Refresh button
     private static void onRefresh() {
-        if (selectedRootDir != null && selectedRootDir.exists()) {
-            loadDirectoryTree(selectedRootDir);
-            appendStatus("↻ Directory refreshed: " + selectedRootDir.getAbsolutePath());
-        } else {
+        if (selectedRootDir == null || !selectedRootDir.exists()) {
             showMaterialDialog("Refresh Error",
                     "No valid directory selected. Please select a folder first.",
                     JOptionPane.WARNING_MESSAGE);
+            return;
         }
+        loadDirectoryTree(selectedRootDir, true);
     }
 
-    // Build tree model recursively from selected root directory and set it to tree
-    private static void loadDirectoryTree(File rootFile) {
-        Set<String> processing = new HashSet<>();
-        DefaultMutableTreeNode rootNode = createFileTreeNode(rootFile, processing);
-        treeModel = new DefaultTreeModel(rootNode);
-        tree.setModel(treeModel);
-        tree.expandRow(0);
-        tree.setAllChecked(true); // default: all checkboxes selected
+    // Build tree model recursively from selected root directory and set it to tree (now async)
+    private static void loadDirectoryTree(File rootFile, boolean isRefresh) {
+        selectButton.setEnabled(false);
+        writeButton.setEnabled(false);
+        refreshButton.setEnabled(false);
+        String loadingMsg = isRefresh ? "↻ Refreshing directory..." : "✓ Folder loading...";
+        appendStatus(loadingMsg + " " + rootFile.getAbsolutePath() + " (background)");
+
+        new SwingWorker<DefaultMutableTreeNode, Void>() {
+            @Override
+            protected DefaultMutableTreeNode doInBackground() throws Exception {
+                Set<String> processing = new HashSet<>();
+                DefaultMutableTreeNode rootNode = createFileTreeNode(rootFile, processing);
+                tree.setCheckedRecursively(rootNode, true);
+                return rootNode;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    DefaultMutableTreeNode rootNode = get();
+                    treeModel = new DefaultTreeModel(rootNode);
+                    tree.setModel(treeModel);
+                    tree.expandRow(0);
+                    tree.repaint();
+                    selectButton.setEnabled(true);
+                    writeButton.setEnabled(true);
+                    refreshButton.setEnabled(true);
+                    String doneMsg = isRefresh ? "↻ Directory refreshed: " : "✓ Folder loaded: ";
+                    appendStatus(doneMsg + rootFile.getAbsolutePath());
+                    if (!isRefresh) {
+                        appendStatus("✓ Output format: File name only (default)");
+                    }
+                } catch (Exception ex) {
+                    appendStatus("❌ Load failed: " + ex.getMessage());
+                    showMaterialDialog("Load Error",
+                            "Failed to load directory:\n" + ex.getMessage(),
+                            JOptionPane.ERROR_MESSAGE);
+                    selectButton.setEnabled(true);
+                    writeButton.setEnabled(true);
+                    refreshButton.setEnabled(true);
+                }
+            }
+        }.execute();
     }
 
     // Recursively create tree nodes; userObject = File for each node

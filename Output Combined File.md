@@ -286,7 +286,13 @@ public class DirectoryBrowser {
     private static void onSelectFolder(ActionEvent e) {
         JFileChooser chooser = createMaterialFileChooser("Select Folder to Browse");
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        chooser.setCurrentDirectory(new File(System.getProperty("user.home"), "Desktop"));
+        File currentDir;
+        if (!pathField.getText().trim().isEmpty()) {
+            currentDir = new File(pathField.getText().trim());
+        } else {
+            currentDir = new File(System.getProperty("user.home"), "Desktop");
+        }
+        chooser.setCurrentDirectory(currentDir);
 
         int res = chooser.showOpenDialog(frame);
         if (res == JFileChooser.APPROVE_OPTION) {
@@ -1238,5 +1244,5 @@ public class Main {
 
 - working nicely don't change code structure/architecture/codebase
 - don't change code structure
-- if directory browser text field is not empty, select folder button click "select folder to browse" location is the text field path, else text field is empty default path is desktop location 
+- when directory and file is too many, it became hang, can use multi-thread? fix by using multi-thread
 - provide full codebase
